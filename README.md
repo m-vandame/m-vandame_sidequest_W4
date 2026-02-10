@@ -1,6 +1,6 @@
 ## Project Title
 
-GBDA302 Week 4 Example 1: Grid + Static Maze
+GBDA302 Week 4 Example 4: layable Maze (JSON + Level class + Player class)
 
 ---
 
@@ -12,7 +12,7 @@ Karen Cochrane and David Han
 
 ## Description
 
-This sketch demonstrates how a 2D array represents a maze/game level.
+Based on example 3, creates and positions the player using preloads and loadJSON files.
 
 ---
 
@@ -20,9 +20,15 @@ This sketch demonstrates how a 2D array represents a maze/game level.
 
 Learning Goals:
 
-- Nested loops to iterate through grid rows/columns
-- Converting grid coordinates (r,c) → screen coordinates (x,y)
-- Tile-based rendering (every cell = one rectangle)
+- Loads JSON levels (preload)
+- Builds Level objects
+- Creates/positions the Player
+- Handles input + level switching
+
+It is intentionally light on "details" because those are moved into:
+
+- Level.js (grid + drawing + tile meaning)
+- Player.js (position + movement rules)
 
 ---
 

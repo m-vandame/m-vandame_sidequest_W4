@@ -1,109 +1,133 @@
 /*
-Week 4 — Example 1: Grid + Static Maze
+Week 4 — Example 4: Playable Maze (JSON + Level class + Player class)
 Course: GBDA302
 Instructors: Dr. Karen Cochrane and David Han
 Date: Feb. 5, 2026
 
-PURPOSE: This is the simplest possible p5.js sketch that demonstrates:
-1. How a 2D array represents a maze/game level
-2. Nested loops to iterate through grid rows/columns
-3. Converting grid coordinates (r,c) → screen coordinates (x,y)
-4. Tile-based rendering (every cell = one rectangle)
+This is the "orchestrator" file:
+- Loads JSON levels (preload)
+- Builds Level objects
+- Creates/positions the Player
+- Handles input + level switching
+
+It is intentionally light on "details" because those are moved into:
+- Level.js (grid + drawing + tile meaning)
+- Player.js (position + movement rules)
+
+Based on the playable maze structure from Example 3
 */
 
-const TS = 32; // TILE SIZE: pixels per grid cell (32x32 squares)
+const TS = 32;
 
-/*
-GRID LEGEND (how numbers map to visuals):
-- 0 = floor (walkable, light gray)
-- 1 = wall (blocked, dark teal)
-*/
-const grid = [
-  // Row 0 (top edge - all walls)
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+// Raw JSON data (from levels.json).
+let levelsData;
 
-  // Row 1 (open hallway with wall in middle)
-  [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+// Array of Level instances.
+let levels = [];
 
-  // Row 2 (complex maze pattern)
-  [1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+// Current level index.
+let li = 0;
 
-  // Row 3
-  [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+// Player instance (tile-based).
+let player;
 
-  // Row 4
-  [1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
-
-  // Row 5
-  [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-
-  // Row 6
-  [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-
-  // Row 7
-  [1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-
-  // Row 8
-  [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
-
-  // Row 9
-  [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-
-  // Row 10 (bottom edge - all walls)
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
-
-/*
-p5.js SETUP: Runs once when sketch loads
-*/
-function setup() {
-  // Canvas size = grid dimensions × tile size
-  // grid[0].length = 16 columns, grid.length = 11 rows
-  // Canvas = 16×32 = 512px wide, 11×32 = 352px tall
-  createCanvas(grid[0].length * TS, grid.length * TS);
-
-  // Drawing style setup
-  noStroke(); // No black outlines on tiles (clean look)
-  textFont("sans-serif"); // Clean font for UI text
-  textSize(14); // Small text size for HUD
+function preload() {
+  // Ensure level data is ready before setup runs.
+  levelsData = loadJSON("levels.json");
 }
 
-/*
-p5.js DRAW: Runs 60 times per second (game loop)
-*/
+function setup() {
+  /*
+  Convert raw JSON grids into Level objects.
+  levelsData.levels is an array of 2D arrays. 
+  */
+  levels = levelsData.levels.map((grid) => new Level(copyGrid(grid), TS));
+
+  // Create a player.
+  player = new Player(TS);
+
+  // Load the first level (sets player start + canvas size).
+  loadLevel(0);
+
+  noStroke();
+  textFont("sans-serif");
+  textSize(14);
+}
+
 function draw() {
-  // Clear screen with light gray background each frame
   background(240);
 
-  /*
-  CORE RENDERING LOOP: Draw every tile in the grid
-  
-  Nested loops:
-  - Outer loop: iterate ROWS (r = 0 to 10)
-  - Inner loop: iterate COLUMNS in each row (c = 0 to 15)
-  */
-  for (let r = 0; r < grid.length; r++) {
-    for (let c = 0; c < grid[0].length; c++) {
-      // TILE TYPE CHECK: What kind of tile is at grid[r][c]?
-      if (grid[r][c] === 1) {
-        // WALL TILE: Dark teal colour (RGB: 30, 50, 60)
-        fill(30, 50, 60);
-      } else {
-        // FLOOR TILE: Light gray (RGB: 230, 230, 230)
-        fill(230);
-      }
+  // Draw current level then player on top.
+  levels[li].draw();
+  player.draw();
 
-      /*
-      CONVERT GRID COORDS → SCREEN COORDS:
-      - Grid: r=0,c=3     → Screen: x=96, y=0
-      - Grid: r=5,c=7     → Screen: x=224, y=160
-      - x = column × TS    y = row × TS
-      */
-      rect(c * TS, r * TS, TS, TS);
-    }
+  drawHUD();
+}
+
+function drawHUD() {
+  // HUD matches your original idea: show level count and controls.
+  fill(0);
+  text(`Level ${li + 1}/${levels.length} — WASD/Arrows to move`, 10, 16);
+}
+
+function keyPressed() {
+  /*
+  Convert key presses into a movement direction. (WASD + arrows)
+  */
+  let dr = 0;
+  let dc = 0;
+
+  if (keyCode === LEFT_ARROW || key === "a" || key === "A") dc = -1;
+  else if (keyCode === RIGHT_ARROW || key === "d" || key === "D") dc = 1;
+  else if (keyCode === UP_ARROW || key === "w" || key === "W") dr = -1;
+  else if (keyCode === DOWN_ARROW || key === "s" || key === "S") dr = 1;
+  else return; // not a movement key
+
+  // Try to move. If blocked, nothing happens.
+  const moved = player.tryMove(levels[li], dr, dc);
+
+  // If the player moved onto a goal tile, advance levels.
+  if (moved && levels[li].isGoal(player.r, player.c)) {
+    nextLevel();
+  }
+}
+
+// ----- Level switching -----
+
+function loadLevel(idx) {
+  li = idx;
+
+  const level = levels[li];
+
+  // Place player at the level's start tile (2), if present.
+  if (level.start) {
+    player.setCell(level.start.r, level.start.c);
+  } else {
+    // Fallback spawn: top-left-ish (but inside bounds).
+    player.setCell(1, 1);
   }
 
-  // UI LABEL: Explain what students are seeing
-  fill(0); // Black text
-  text("Static array → grid render", 10, 16);
+  // Ensure the canvas matches this level’s dimensions.
+  resizeCanvas(level.pixelWidth(), level.pixelHeight());
+}
+
+function nextLevel() {
+  // Wrap around when we reach the last level.
+  const next = (li + 1) % levels.length;
+  loadLevel(next);
+}
+
+// ----- Utility -----
+
+function copyGrid(grid) {
+  /*
+  Make a deep-ish copy of a 2D array:
+  - new outer array
+  - each row becomes a new array
+
+  Why copy?
+  - Because Level constructor may normalize tiles (e.g., replace 2 with 0)
+  - And we don’t want to accidentally mutate the raw JSON data object. 
+  */
+  return grid.map((row) => row.slice());
 }
